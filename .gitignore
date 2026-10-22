@@ -10,3 +10,6 @@ build/
 .terraform/
 *.tfstate
 *.tfstate.backup
+.terraform/
+*.tfstate
+*.tfstate.backup

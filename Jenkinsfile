@@ -2,7 +2,8 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = 'subitcha1998/trend-app'
-        CONTAINER_NAME = 'trend-container'
+        AWS_REGION   = 'us-east-1'
+        CLUSTER_NAME = 'trend-cluster'
     }
     stages {
         stage('Checkout Code') {
@@ -23,12 +24,24 @@ pipeline {
                 }
             }
         }
-        stage('Deploy Container') {
+        stage('Deploy to EKS') {
             steps {
-                sh "docker stop ${CONTAINER_NAME} || true"
-                sh "docker rm ${CONTAINER_NAME} || true"
-                sh "docker run -d -p 3000:3000 --name ${CONTAINER_NAME} ${DOCKER_IMAGE}:latest"
+                sh """
+                    aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
+                    kubectl apply -f k8s/
+                    kubectl rollout restart deployment/trend-app
+                    kubectl rollout status deployment/trend-app --timeout=180s
+                    kubectl get pods
+                    kubectl get svc trend-service
+                """
             }
         }
+    }
+    post {
+        always {
+            sh 'docker image prune -f || true'
+        }
+        success { echo 'Deployed to EKS successfully' }
+        failure { echo 'Pipeline failed' }
     }
 }
